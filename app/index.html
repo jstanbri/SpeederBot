@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tangmere Traffic Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #chartContainer {
+            width: 80%;
+            margin: auto;
+        }
+        #keyMetrics {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .timestamp {
+            font-size: 0.9em;
+            color: gray;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tangmere Traffic Data Visualization</h1>
+    
+    <!-- Key Metrics Display -->
+    <div id="keyMetrics">
+        <h2>Key Traffic Metrics</h2>
+        <p>Average Speed: <span id="averageSpeed">0</span> km/h</p>
+        <p>Maximum Jam Factor: <span id="maxJamFactor">0</span></p>
+        <p>Most Congested Road: <span id="mostCongestedRoad">N/A</span></p>
+        <p class="timestamp">Data Last Updated: <span id="lastUpdated">N/A</span></p>
+    </div>
+
+    <!-- Chart Container -->
+    <div id="chartContainer">
+        <canvas id="trafficChart"></canvas>
+    </div>
+
+    <script>
+        // Example traffic data extracted from GeoJSON (including timestamp)
+        var trafficData = {
+            "sourceUpdated": "2024-09-17T14:30:46Z",  // Data timestamp
+            "results": [
+                {
+                    "description": "Tangmere Road 1",
+                    "speed": 22.22,
+                    "jamFactor": 1.1
+                },
+                {
+                    "description": "Tangmere Road 2",
+                    "speed": 18.50,
+                    "jamFactor": 2.5
+                },
+                {
+                    "description": "Tangmere Road 3",
+                    "speed": 12.75,
+                    "jamFactor": 3.8
+                }
+            ]
+        };
+
+        // Prepare data for Chart.js
+        var labels = trafficData.results.map(function(road) {
+            return road.description;
+        });
+        var speedData = trafficData.results.map(function(road) {
+            return road.speed;
+        });
+        var jamFactorData = trafficData.results.map(function(road) {
+            return road.jamFactor;
+        });
+
+        // Chart.js Bar Chart
+        var ctx = document.getElementById('trafficChart').getContext('2d');
+        var trafficChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,  // Road descriptions as labels
+                datasets: [
+                    {
+                        label: 'Speed (km/h)',
+                        data: speedData,  // Speed data
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',  // Blue color for speed
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Jam Factor',
+                        data: jamFactorData,  // Jam factor data
+                        backgroundColor: 'rgba(255, 99, 132, 0.6)',  // Red color for jam factor
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                responsive: true
+            }
+        });
+
+        // Calculate key metrics
+        var totalSpeed = speedData.reduce((a, b) => a + b, 0);
+        var averageSpeed = (totalSpeed / speedData.length).toFixed(2);
+        var maxJamFactor = Math.max(...jamFactorData);
+        var mostCongestedRoad = trafficData.results[jamFactorData.indexOf(maxJamFactor)].description;
+
+        // Update key metrics in HTML
+        document.getElementById('averageSpeed').textContent = averageSpeed;
+        document.getElementById('maxJamFactor').textContent = maxJamFactor;
+        document.getElementById('mostCongestedRoad').textContent = mostCongestedRoad;
+
+        // Format and display the timestamp
+        var lastUpdated = new Date(trafficData.sourceUpdated).toLocaleString();
+        document.getElementById('lastUpdated').textContent = lastUpdated;
+    </script>
+</body>
+</html>
