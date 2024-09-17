@@ -42,8 +42,8 @@
             },
             "properties": {
                 "description": "Tangmere",
-                "speed": 24.722223,
-                "jamFactor": 0.2
+                "speed": 21.944445,
+                "jamFactor": 1.2
             }
         }
     ]

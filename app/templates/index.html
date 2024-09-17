@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Data Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #chartContainer {
+            width: 80%;
+            margin: auto;
+            padding-top: 50px;
+        }
+        canvas {
+            max-width: 100%;
+        }
+        #counter {
+            text-align: center;
+            font-size: 18px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Traffic Data for Tangmere</h1>
+
+    <div id="chartContainer">
+        <canvas id="trafficChart"></canvas>
+    </div>
+
+    <div id="counter">
+        Refreshing in <span id="countdown">30</span> seconds...
+    </div>
+
+    <script>
+        // Initialize the countdown timer and set it to 30 seconds
+        let countdown = 30;
+        const countdownElement = document.getElementById('countdown');
+
+        // Function to update the countdown every second
+        function updateCountdown() {
+            countdown--;
+            if (countdown < 0) {
+                countdown = 30;  // Reset countdown after it reaches 0
+            }
+            countdownElement.textContent = countdown;
+        }
+
+        // Start updating the countdown every second
+        setInterval(updateCountdown, 1000);
+
+        // Function to initialize or update the chart with new data
+        let trafficChart;
+        function updateChart(trafficData) {
+            const ctx = document.getElementById('trafficChart').getContext('2d');
+
+            // If the chart exists, update the data, otherwise create a new chart
+            if (trafficChart) {
+                trafficChart.data.labels = trafficData.locations;
+                trafficChart.data.datasets[0].data = trafficData.speeds;
+                trafficChart.data.datasets[1].data = trafficData.jamFactors;
+                trafficChart.update();  // Update the existing chart
+            } else {
+                trafficChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: trafficData.locations,  // Road descriptions as labels
+                        datasets: [
+                            {
+                                label: 'Speed (km/h)',
+                                data: trafficData.speeds,  // Speed data
+                                backgroundColor: 'rgba(54, 162, 235, 0.6)',  // Blue color for speed
+                                borderColor: 'rgba(54, 162, 235, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Jam Factor',
+                                data: trafficData.jamFactors,  // Jam factor data
+                                backgroundColor: 'rgba(255, 99, 132, 0.6)',  // Red color for jam factor
+                                borderColor: 'rgba(255, 99, 132, 1)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        },
+                        responsive: true
+                    }
+                });
+            }
+        }
+
+        // Function to fetch traffic data from the server
+        function fetchTrafficData() {
+            fetch('/traffic_data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        // Update the chart with new data
+                        updateChart({
+                            locations: data.map(item => item.location.description),
+                            speeds: data.map(item => item.currentFlow.speed),
+                            jamFactors: data.map(item => item.currentFlow.jamFactor)
+                        });
+                    } else {
+                        console.error("No data received from the server.");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching data:", error);
+                });
+        }
+
+        // Fetch traffic data immediately when the page loads
+        fetchTrafficData();
+
+        // Auto-refresh the traffic data every 30 seconds
+        setInterval(() => {
+            fetchTrafficData();
+            countdown = 30;  // Reset countdown when the data is refreshed
+        }, 30000);
+    </script>
+</body>
+</html>
