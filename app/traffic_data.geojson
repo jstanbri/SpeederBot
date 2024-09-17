@@ -1,0 +1,117 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        -0.64205,
+                        50.85663
+                    ],
+                    [
+                        -0.64226,
+                        50.8567
+                    ],
+                    [
+                        -0.64241,
+                        50.85674
+                    ],
+                    [
+                        -0.64263,
+                        50.85679
+                    ],
+                    [
+                        -0.64284,
+                        50.85681
+                    ],
+                    [
+                        -0.64327,
+                        50.8568
+                    ],
+                    [
+                        -0.64488,
+                        50.85668
+                    ],
+                    [
+                        -0.64684,
+                        50.85654
+                    ]
+                ]
+            },
+            "properties": {
+                "description": "Tangmere",
+                "speed": 23.055555,
+                "jamFactor": 0.8
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        -0.72533,
+                        50.85411
+                    ],
+                    [
+                        -0.72432,
+                        50.85428
+                    ]
+                ]
+            },
+            "properties": {
+                "description": "Fontwell",
+                "speed": 22.777779,
+                "jamFactor": 0.8
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        -0.61131,
+                        50.98419
+                    ],
+                    [
+                        -0.61128,
+                        50.98398
+                    ]
+                ]
+            },
+            "properties": {
+                "description": "Strettington",
+                "speed": 17.5,
+                "jamFactor": 0.7
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [
+                        -0.72944,
+                        50.85362
+                    ],
+                    [
+                        -0.72942,
+                        50.8538
+                    ],
+                    [
+                        -0.72939,
+                        50.85403
+                    ]
+                ]
+            },
+            "properties": {
+                "description": "Petworth",
+                "speed": 17.777779,
+                "jamFactor": 0.6
+            }
+        }
+    ]
+}
