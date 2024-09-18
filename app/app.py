@@ -1,13 +1,21 @@
 from flask import Flask, jsonify, render_template, request
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text
+from sqlalchemy import text  # Import text from SQLAlchemy
 from datetime import datetime, timedelta, timezone
 import os, time, threading, requests
 from dotenv import load_dotenv
 import json
+import logging
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Set up logging
+logging.basicConfig(filename='app.log', level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)s: %(message)s', 
+                    datefmt='%Y-%m-%d %H:%M:%S')
+
+logger = logging.getLogger()
 
 # Check if all necessary environment variables are present
 postgres_host = os.getenv('POSTGRES_HOST')
@@ -19,6 +27,7 @@ schema_name = os.getenv('CHAIN')
 
 # Ensure all values are set
 if not postgres_host or not postgres_port or not postgres_user or not postgres_password or not postgres_db or not schema_name:
+    logger.error("One or more required PostgreSQL environment variables are missing.")
     raise ValueError("One or more required PostgreSQL environment variables are missing.")
 
 # Configure PostgreSQL database using environment variables
@@ -32,6 +41,8 @@ db = SQLAlchemy(app)
 # Create the table within the specified schema if it doesn't exist
 with app.app_context():
     create_table_sql = f"""
+    CREATE SCHEMA IF NOT EXISTS {schema_name};
+    
     CREATE TABLE IF NOT EXISTS {schema_name}.traffic_data (
         id SERIAL PRIMARY KEY,
         timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
@@ -42,7 +53,8 @@ with app.app_context():
         filter_value VARCHAR(80)
     );
     """
-    db.session.execute(text(create_table_sql))
+    logger.info("Creating table if not exists")
+    db.session.execute(text(create_table_sql))  # Wrap the SQL in text()
     db.session.commit()
 
 # Database model for traffic data
@@ -64,8 +76,13 @@ class TrafficAPIClient:
     
     def __init__(self, bbox=None, filter_desc=None):
         self.api_key = os.getenv("API_KEY")
+        if not self.api_key:
+            logger.error("API Key not found")
+            raise ValueError("API Key not found")
+        
         self.bbox = bbox or tuple(map(float, os.getenv("BBOX").split(',')))
         self.filter = filter_desc or os.getenv("FILTER")
+        logger.info(f"TrafficAPIClient initialized with bbox: {self.bbox} and filter: {self.filter}")
         
     def get_traffic_flow(self):
         params = {
@@ -73,14 +90,21 @@ class TrafficAPIClient:
             "in": f"bbox:{self.bbox[0]},{self.bbox[1]},{self.bbox[2]},{self.bbox[3]}",
             "apiKey": self.api_key
         }
+        logger.info(f"Making API request with params: {params}")
         response = requests.get(self.BASE_URL, params=params)
-        return response.json() if response.status_code == 200 else {}
+        if response.status_code == 200:
+            logger.info("Successfully fetched traffic data")
+            return response.json()
+        else:
+            logger.error(f"Error fetching traffic data: {response.status_code} {response.text}")
+            return {}
 
     def filter_results_by_description(self, data):
         filtered_results = [
             result for result in data.get('results', [])
             if self.filter.lower() in result['location']['description'].lower()
         ]
+        logger.info(f"Filtered {len(filtered_results)} results based on filter: {self.filter}")
         return filtered_results
 
 # Endpoint to collect traffic data every 5 seconds for an hour and store in the database
@@ -90,24 +114,34 @@ def traffic_db():
         client = TrafficAPIClient()
         end_time = datetime.now(timezone.utc) + timedelta(hours=1)  # Timezone-aware
         while datetime.now(timezone.utc) < end_time:  # Timezone-aware
-            traffic_data = client.get_traffic_flow()
-            filtered_traffic_data = client.filter_results_by_description(traffic_data)
-            for result in filtered_traffic_data:
-                new_entry = TrafficData(
-                    location=result['location']['description'],
-                    speed=result['currentFlow']['speed'],
-                    jam_factor=result['currentFlow']['jamFactor'],
-                    bbox=str(client.bbox),
-                    filter_value=client.filter
-                )
-                db.session.add(new_entry)
-                db.session.commit()
-            time.sleep(5)  # Wait 5 seconds before fetching again
+            try:
+                traffic_data = client.get_traffic_flow()
+                filtered_traffic_data = client.filter_results_by_description(traffic_data)
+
+                # Use app.app_context() to ensure database access within the app context
+                with app.app_context():
+                    for result in filtered_traffic_data:
+                        new_entry = TrafficData(
+                            location=result['location']['description'],
+                            speed=result['currentFlow']['speed'],
+                            jam_factor=result['currentFlow']['jamFactor'],
+                            bbox=str(client.bbox),
+                            filter_value=client.filter
+                        )
+                        logger.info(f"Inserting new data entry: {new_entry}")
+                        db.session.add(new_entry)
+                        db.session.commit()
+
+                logger.info("Waiting 5 seconds before next fetch")
+                time.sleep(5)  # Wait 5 seconds before fetching again
+            except Exception as e:
+                logger.error(f"Error during data collection: {e}")
 
     thread = threading.Thread(target=run_for_hour)
     thread.start()
     
     return jsonify({"message": "Data collection started for 1 hour"}), 200
+
 
 # Endpoint to display data collected over the last hour
 @app.route('/traffic-db-view')
@@ -115,21 +149,34 @@ def traffic_db_view():
     one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)  # Timezone-aware
     traffic_data = TrafficData.query.filter(TrafficData.timestamp >= one_hour_ago).all()
 
-    data = [{"time": td.timestamp, "location": td.location, "speed": td.speed} for td in traffic_data]
+    # Convert datetime objects to ISO 8601 string format
+    data = [{"time": td.timestamp.isoformat(), "location": td.location, "speed": td.speed} for td in traffic_data]
+
     return render_template('db_view.html', data=json.dumps(data))
 
+
 # Endpoint to allow users to override bbox and filter
-@app.route('/traffic-env', methods=['POST'])
+@app.route('/traffic-env', methods=['GET', 'POST'])
 def traffic_env():
-    bbox = request.json.get('bbox')
-    filter_value = request.json.get('filter')
+    if request.method == 'POST':
+        # Handle the form submission to update bbox and filter
+        bbox = request.form.get('bbox')
+        filter_value = request.form.get('filter')
 
-    if bbox:
-        os.environ['BBOX'] = ','.join(map(str, bbox))
-    if filter_value:
-        os.environ['FILTER'] = filter_value
+        if bbox:
+            os.environ['BBOX'] = bbox  # Update the environment variable
+            logger.info(f"BBOX updated to: {bbox}")
+        if filter_value:
+            os.environ['FILTER'] = filter_value  # Update the environment variable
+            logger.info(f"Filter updated to: {filter_value}")
 
-    return jsonify({"message": "Environment variables updated", "bbox": bbox, "filter": filter_value}), 200
+        return render_template('traffic_env.html', bbox=bbox, filter=filter_value, message="Environment variables updated successfully!")
+
+    elif request.method == 'GET':
+        # Display the current bbox and filter values
+        bbox = os.getenv('BBOX', '')
+        filter_value = os.getenv('FILTER', '')
+        return render_template('traffic_env.html', bbox=bbox, filter=filter_value)
 
 if __name__ == "__main__":
     app.run(debug=True)
