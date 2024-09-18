@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Data View</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Traffic Data View</h1>
+    <canvas id="trafficChart"></canvas>
+
+    <script>
+        var data = JSON.parse('{{ data | safe }}');
+        var ctx = document.getElementById('trafficChart').getContext('2d');
+        var times = data.map(item => new Date(item.time).toLocaleTimeString());
+        var speeds = data.map(item => item.speed);
+        var highestSpeed = Math.max(...speeds);
+
+        var chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: times,
+                datasets: [{
+                    label: 'Speed (km/h)',
+                    data: speeds,
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                title: {
+                    display: true,
+                    text: 'Highest Speed Recorded: ' + highestSpeed + ' km/h'
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

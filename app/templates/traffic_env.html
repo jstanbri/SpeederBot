@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Traffic Environment Variables</title>
+</head>
+<body>
+    <h1>Current Environment Variables</h1>
+    
+    <p><strong>BBOX:</strong> {{ bbox }}</p>
+    <p><strong>Filter:</strong> {{ filter }}</p>
+
+    <h2>Update Environment Variables</h2>
+    <form action="/traffic-env" method="POST">
+        <label for="bbox">Bounding Box (BBOX):</label><br>
+        <input type="text" id="bbox" name="bbox" value="{{ bbox }}"><br><br>
+
+        <label for="filter">Location Filter (Filter):</label><br>
+        <input type="text" id="filter" name="filter" value="{{ filter }}"><br><br>
+
+        <input type="submit" value="Update">
+    </form>
+
+    {% if message %}
+        <p><strong>{{ message }}</strong></p>
+    {% endif %}
+</body>
+</html>
